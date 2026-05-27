@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#0f172a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="SteelTrack"/>
+<title>SteelTrack — EPC Progress</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#293548;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --accent:#f97316;--blue:#3b82f6;--green:#22c55e;
+  --amber:#f59e0b;--red:#ef4444;--teal:#14b8a6;
+  --border:rgba(148,163,184,0.15);--border2:rgba(148,163,184,0.25);
+  --radius:12px;--radius-sm:8px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;overscroll-behavior:none}
+input,select{font-size:14px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:10px 12px;width:100%;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+input::placeholder{color:var(--text3)}
+select option{background:var(--bg2)}
+label{font-size:11px;color:var(--text2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px;display:block}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:500;transition:all .15s}
+button:active{transform:scale(.97)}
+.btn{background:var(--accent);color:#fff;padding:12px 20px;width:100%;font-size:14px;font-weight:600}
+.btn-sm{background:var(--bg3);color:var(--text2);padding:7px 14px;border:1px solid var(--border2)}
+.btn-ghost{background:var(--bg3);color:var(--text2);padding:9px 16px;border:1px solid var(--border2)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card-accent{border-left:3px solid var(--accent)}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;letter-spacing:.04em;text-transform:uppercase}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.badge-orange{background:rgba(249,115,22,.15);color:var(--accent)}
+.badge-teal{background:rgba(20,184,166,.15);color:var(--teal)}
+.ptrack{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:6px}
+.pfill{height:100%;border-radius:2px;transition:width .5s}
+.sec-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+.divider{border:none;border-top:1px solid var(--border);margin:14px 0}
+.fg{margin-bottom:12px}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;z-index:9999;white-space:nowrap;display:none}
+.toast.err{background:var(--red)}
+.stat{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;border:1px solid var(--border)}
+.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border2);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px;cursor:pointer;background:none;border:none;color:var(--text3);font-size:9px;letter-spacing:.03em;text-transform:uppercase;gap:3px}
+.nav-item.active{color:var(--accent)}
+.nav-item svg{width:20px;height:20px}
+.page{display:none;min-height:100vh;padding:0 0 80px;max-width:480px;margin:0 auto}
+.page.active{display:block}
+.ph{padding:52px 16px 16px;border-bottom:1px solid var(--border);margin-bottom:16px;background:var(--bg);position:sticky;top:0;z-index:50}
+.ph h1{font-size:20px;font-weight:800}
+.ph p{font-size:12px;color:var(--text3);margin-top:2px}
+.px{padding:0 16px}
+.log-row{padding:12px 0;border-bottom:1px solid var(--border)}
+.log-row:last-child{border-bottom:none}
+.stage-chip{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center}
+.stage-chip label{font-size:9px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.stage-chip input{text-align:center;padding:6px 4px;font-size:13px;font-weight:500}
+.acl{text-align:center;padding:60px 24px;color:var(--text3)}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:var(--bg)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="width:56px;height:56px;border-radius:16px;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px">⚙</div>
+      <h1 style="font-size:26px;font-weight:800;margin-bottom:4px">SteelTrack</h1>
+      <p style="color:var(--text3);font-size:13px">EPC Steel Structure Progress</p>
+    </div>
+    <div class="fg"><label>Email</label><input id="li-email" type="email" placeholder="your@email.com" autocomplete="email"/></div>
+    <div class="fg"><label>Password</label><input id="li-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+    <div id="li-err" style="background:rgba(239,68,68,.1);color:var(--red);padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;display:none"></div>
+    <button class="btn" id="li-btn" onclick="doLogin()">Sign in</button>
+    <p style="text-align:center;color:var(--text3);font-size:12px;margin-top:20px">Contact your project admin for access.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+
+<!-- DASHBOARD -->
+<div class="page active" id="p-dashboard">
+  <div class="ph">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><h1 id="proj-title">SteelTrack</h1><p id="dash-user">Loading...</p></div>
+      <span class="badge badge-orange" id="dash-role">—</span>
+    </div>
+  </div>
+  <div class="px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="stat"><div class="stat-label">Released</div><div class="stat-value" id="kpi-released">0 T</div><div class="stat-sub" id="kpi-rel-pct">0% of contract</div><div class="ptrack"><div class="pfill" id="kpi-rel-bar" style="width:0%;background:var(--blue)"></div></div></div>
+      <div class="stat"><div class="stat-label">Despatched</div><div class="stat-value" id="kpi-desp">0 T</div><div class="stat-sub" id="kpi-desp-pct">0% of contract</div><div class="ptrack"><div class="pfill" id="kpi-desp-bar" style="width:0%;background:var(--teal)"></div></div></div>
+      <div class="stat"><div class="stat-label">Erected</div><div class="stat-value" id="kpi-erected">0 T</div><div class="stat-sub" id="kpi-er-pct">0% of contract</div><div class="ptrack"><div class="pfill" id="kpi-er-bar" style="width:0%;background:var(--amber)"></div></div></div>
+      <div class="stat"><div class="stat-label">Drawings</div><div class="stat-value" id="kpi-dwgs">0</div><div class="stat-sub" id="kpi-shops">0 shops</div></div>
+    </div>
+    <div class="sec-title">Fabrication pipeline</div>
+    <div class="fr3" id="fab-pipeline" style="margin-bottom:16px"></div>
+    <div class="sec-title">Structure overview</div>
+    <div class="card" style="padding:8px 12px" id="struct-overview"><p style="color:var(--text3);font-size:12px">No data yet.</p></div>
+    <div class="sec-title" style="margin-top:4px">Recent activity</div>
+    <div class="card" style="padding:4px 12px" id="activity-list"><p style="color:var(--text3);font-size:12px;padding:12px 0">No activity yet.</p></div>
+  </div>
+</div>
+
+<!-- ENGINEERING -->
+<div class="page" id="p-engineering">
+  <div class="ph"><h1>Engineering release</h1><p>Drawing & tonnage releases to fab shops</p></div>
+  <div class="px">
+    <div id="eng-form-wrap">
+      <div class="card card-accent">
+        <div class="sec-title">New release</div>
+        <div class="fg"><label>Drawing no. *</label><input id="e-dwg" placeholder="e.g. AEIN-VMT-24-03-SP-FD"/></div>
+        <div class="fr2">
+          <div class="fg"><label>Structure / tag *</label><input id="e-struct" placeholder="e.g. PCG6 OG1"/></div>
+          <div class="fg"><label>Revision</label><input id="e-rev" placeholder="Rev 0"/></div>
+        </div>
+        <div class="fr2">
+          <div class="fg"><label>Fab shop *</label><select id="e-shop"><option value="">Select shop</option></select></div>
+          <div class="fg"><label>Release date *</label><input type="date" id="e-date"/></div>
+        </div>
+        <div class="fg"><label>Tonnage (T) *</label><input type="number" id="e-ton" placeholder="0.00" step="0.01"/></div>
+        <div class="fg"><label>Remarks</label><input id="e-rem" placeholder="Optional"/></div>
+        <button class="btn" onclick="saveEng()">✓ Save release</button>
+      </div>
+    </div>
+    <div class="sec-title">Release log</div>
+    <div id="eng-log"><p style="color:var(--text3);font-size:13px">No releases yet.</p></div>
+  </div>
+</div>
+
+<!-- FABRICATION -->
+<div class="page" id="p-fabrication">
+  <div class="ph"><h1>Shop progress</h1><p>Daily fabrication stage updates</p></div>
+  <div class="px">
+    <div id="fab-form-wrap">
+      <div class="card card-accent">
+        <div class="sec-title">Daily progress entry</div>
+        <div class="fr2">
+          <div class="fg"><label>Date *</label><input type="date" id="f-date"/></div>
+          <div class="fg"><label>Shop *</label><select id="f-shop"><option value="">Select</option></select></div>
+        </div>
+        <div class="fg"><label>Drawing *</label><select id="f-dwg"><option value="">Select drawing</option></select></div>
+        <div class="divider"></div>
+        <div class="sec-title">Stage-wise cumulative tonnage (T)</div>
+        <div class="fr3" id="stage-inputs"></div>
+        <div class="fg" style="margin-top:12px"><label>Remarks</label><input id="f-rem" placeholder="Optional"/></div>
+        <button class="btn" onclick="saveFab()">✓ Save progress</button>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;margin-bottom:10px">
+      <div class="sec-title" style="margin-bottom:0">Progress log</div>
+      <select id="f-filter" onchange="renderFabLog()" style="width:auto;font-size:12px;padding:6px 10px"><option value="">All shops</option></select>
+    </div>
+    <div id="fab-log"><p style="color:var(--text3);font-size:13px">No entries yet.</p></div>
+  </div>
+</div>
+
+<!-- ERECTION -->
+<div class="page" id="p-erection">
+  <div class="ph"><h1>Erection progress</h1><p>Daily site erection by tonnage</p></div>
+  <div class="px">
+    <div class="stat" style="margin-bottom:14px;border-left:3px solid var(--amber)">
+      <div class="stat-label">Erected today</div>
+      <div class="stat-value" id="er-today">0.00 T</div>
+      <div class="stat-sub" id="er-today-date"></div>
+    </div>
+    <div id="er-form-wrap">
+      <div class="card card-accent">
+        <div class="sec-title">New erection entry</div>
+        <div class="fr2">
+          <div class="fg"><label>Date *</label><input type="date" id="r-date"/></div>
+          <div class="fg"><label>Area / zone *</label><input id="r-area" placeholder="e.g. Train-1 Bay A"/></div>
+        </div>
+        <div class="fg"><label>Drawing *</label><select id="r-dwg"><option value="">Select drawing</option></select></div>
+        <div class="fr2">
+          <div class="fg"><label>Today's tonnage (T) *</label><input type="number" id="r-ton" placeholder="0.00" step="0.01"/></div>
+          <div class="fg"><label>Cumulative (T)</label><input type="number" id="r-cum" placeholder="0.00" step="0.01"/></div>
+        </div>
+        <div class="fr2">
+          <div class="fg"><label>Crew size</label><input type="number" id="r-crew" placeholder="0"/></div>
+          <div class="fg"><label>Remarks</label><input id="r-rem" placeholder="Optional"/></div>
+        </div>
+        <button class="btn" onclick="saveEr()">✓ Save erection entry</button>
+      </div>
+    </div>
+    <div class="sec-title" style="margin-top:8px">Erection log</div>
+    <div id="er-log"><p style="color:var(--text3);font-size:13px">No entries yet.</p></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="p-settings">
+  <div class="ph">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><h1>Settings</h1><p id="set-user">—</p></div>
+      <button class="btn-ghost" onclick="doSignOut()" style="font-size:12px">Sign out</button>
+    </div>
+  </div>
+  <div class="px">
+    <div class="sec-title">Project info</div>
+    <div class="card">
+      <div class="fg"><label>Project name</label><input id="s-name" placeholder="e.g. Vizag Terminal Expansion"/></div>
+      <div class="fg"><label>Contract tonnage (T)</label><input type="number" id="s-ton" placeholder="0" step="0.01"/></div>
+      <button class="btn" onclick="saveProject()">Save project info</button>
+    </div>
+    <div class="sec-title">Fabrication shops</div>
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="s-shop" placeholder="Shop name" style="flex:1"/>
+        <button class="btn-ghost" onclick="addShop()">+ Add</button>
+      </div>
+      <div id="shop-list"><p style="color:var(--text3);font-size:13px">No shops yet.</p></div>
+    </div>
+    <div id="admin-section" style="display:none">
+      <div class="sec-title">Create team member</div>
+      <div class="card">
+        <div class="fg"><label>Full name</label><input id="u-name" placeholder="Name"/></div>
+        <div class="fg"><label>Email</label><input type="email" id="u-email" placeholder="email@example.com"/></div>
+        <div class="fr2">
+          <div class="fg"><label>Password</label><input type="password" id="u-pass" placeholder="min 6 chars"/></div>
+          <div class="fg"><label>Role</label>
+            <select id="u-role">
+              <option value="engineering">Engineering</option>
+              <option value="fabrication">Fabrication</option>
+              <option value="erection">Erection</option>
+              <option value="viewer">Viewer (PMC)</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" onclick="createUser()">+ Create user</button>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px">Roles: admin · manager · engineering · fabrication · erection · viewer</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-item active" onclick="goTo('dashboard',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Dashboard
+  </button>
+  <button class="nav-item" onclick="goTo('engineering',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Drawings
+  </button>
+  <button class="nav-item" onclick="goTo('fabrication',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>Shop
+  </button>
+  <button class="nav-item" onclick="goTo('erection',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Erection
+  </button>
+  <button class="nav-item" onclick="goTo('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  REPLACE WITH YOUR FIREBASE CONFIG
+// ═══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+// ═══════════════════════════════════════════════
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+// Enable offline persistence
+db.enablePersistence().catch(err => console.log('Persistence:', err.code));
+
+const FAB_STAGES = ['Raw material','Cutting','Fit-up','Welding','Mock-up','TPI inspection','Painting','Packing','Despatch'];
+const STAGE_COLORS = {'Raw material':'#64748b','Cutting':'#3b82f6','Fit-up':'#8b5cf6','Welding':'#f97316','Mock-up':'#eab308','TPI inspection':'#14b8a6','Painting':'#ec4899','Packing':'#22c55e','Despatch':'#10b981'};
+
+let currentUser = null, currentProfile = null;
+let allShops = [], allDrawings = [], allFab = [], allEr = [], projectInfo = {name:'',totalTonnage:0};
+
+function today(){ return new Date().toISOString().split('T')[0]; }
+function fmt(n){ return parseFloat(n||0).toFixed(2); }
+function pct(v,t){ return t ? Math.min(100,(v/t)*100).toFixed(1) : 0; }
+
+function showToast(msg, err=false){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast' + (err?' err':'');
+  t.style.display = 'block';
+  setTimeout(()=>{ t.style.display='none'; }, 2800);
+}
+
+// AUTH
+auth.onAuthStateChanged(async user => {
+  if(user){
+    currentUser = user;
+    let snap;
+    try {
+      snap = await db.collection('users').doc(user.uid).get();
+    } catch(e) {
+      console.error('Could not read user profile:', e.code, e.message);
+      snap = { exists: false };
+    }
+    if(!snap.exists) {
+      console.warn('No Firestore doc for UID:', user.uid, '— check users collection');
+    }
+    currentProfile = snap.exists ? snap.data() : {name: user.email, role:'viewer'};
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+
+async function doLogin(){
+  const email = document.getElementById('li-email').value.trim();
+  const pass = document.getElementById('li-pass').value;
+  const errEl = document.getElementById('li-err');
+  const btn = document.getElementById('li-btn');
+  errEl.style.display = 'none';
+  btn.textContent = 'Signing in…';
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch(e){ errEl.textContent = 'Invalid email or password.'; errEl.style.display='block'; btn.textContent='Sign in'; }
+}
+
+function doSignOut(){ auth.signOut(); }
+
+// NAV
+function goTo(page, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('p-'+page).classList.add('active');
+  btn.classList.add('active');
+  if(page==='dashboard') renderDashboard();
+  if(page==='fabrication') populateFabSelects();
+  if(page==='erection') populateErSelects();
+}
+
+function initApp(){
+  const p = currentProfile;
+  document.getElementById('dash-user').textContent = 'Welcome, ' + (p.name||'User');
+  document.getElementById('dash-role').textContent = (p.role||'viewer').toUpperCase(); console.log('Loaded profile:', p);
+  document.getElementById('set-user').textContent = (p.name||'') + ' · ' + (p.role||'');
+  if(['admin','manager'].includes(p.role)) document.getElementById('admin-section').style.display='block';
+
+  // Hide form for wrong roles
+  const engAllowed = ['admin','manager','engineering'];
+  const fabAllowed = ['admin','manager','fabrication'];
+  const erAllowed  = ['admin','manager','erection'];
+  if(!engAllowed.includes(p.role)) document.getElementById('eng-form-wrap').innerHTML='<div class="acl"><div style="font-size:32px;margin-bottom:12px">🔒</div><p>Restricted to Engineering team.</p></div>';
+  if(!fabAllowed.includes(p.role)) document.getElementById('fab-form-wrap').innerHTML='<div class="acl"><div style="font-size:32px;margin-bottom:12px">🔒</div><p>Restricted to Fabrication team.</p></div>';
+  if(!erAllowed.includes(p.role))  document.getElementById('er-form-wrap').innerHTML='<div class="acl"><div style="font-size:32px;margin-bottom:12px">🔒</div><p>Restricted to Erection team.</p></div>';
+
+  // Set today's date
+  ['e-date','f-date','r-date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=today(); });
+
+  // Build stage inputs
+  const si = document.getElementById('stage-inputs');
+  if(si){ si.innerHTML = FAB_STAGES.map((st,i)=>`<div class="stage-chip" style="border-left:3px solid ${STAGE_COLORS[st]}"><label>${st}</label><input type="number" id="fs-${i}" placeholder="0.00" step="0.01"/></div>`).join(''); }
+
+  // Listeners
+  db.collection('project').doc('info').onSnapshot(snap=>{ if(snap.exists){ projectInfo=snap.data(); document.getElementById('proj-title').textContent=projectInfo.name||'SteelTrack'; document.getElementById('s-name').value=projectInfo.name||''; document.getElementById('s-ton').value=projectInfo.totalTonnage||''; } });
+  db.collection('shops').onSnapshot(snap=>{ allShops=snap.docs.map(d=>({id:d.id,...d.data()})); renderShopList(); populateShopSelects(); });
+  db.collection('engineering').onSnapshot(snap=>{ allDrawings=snap.docs.map(d=>({id:d.id,...d.data()})); renderEngLog(); populateFabSelects(); populateErSelects(); });
+  db.collection('fabrication').orderBy('createdAt','desc').onSnapshot(snap=>{ allFab=snap.docs.map(d=>({id:d.id,...d.data()})); renderFabLog(); renderDashboard(); });
+  db.collection('erection').orderBy('createdAt','desc').onSnapshot(snap=>{ allEr=snap.docs.map(d=>({id:d.id,...d.data()})); renderErLog(); renderErToday(); renderDashboard(); });
+  db.collection('activity').orderBy('ts','desc').limit(20).onSnapshot(snap=>{ renderActivity(snap.docs.map(d=>d.data())); });
+}
+
+// DASHBOARD
+function renderDashboard(){
+  const contract = projectInfo.totalTonnage||0;
+  const released = allDrawings.reduce((a,e)=>a+(e.tonnage||0),0);
+  const erected  = allEr.reduce((a,e)=>a+(e.tonnage||0),0);
+  const stageTotals = {};
+  FAB_STAGES.forEach(st=>{ stageTotals[st]=allFab.reduce((a,r)=>a+((r.stages&&r.stages[st])||0),0); });
+  const despatched = stageTotals['Despatch']||0;
+
+  document.getElementById('kpi-released').textContent = fmt(released)+' T';
+  document.getElementById('kpi-rel-pct').textContent = pct(released,contract)+'% of '+(contract||'?')+'T';
+  document.getElementById('kpi-rel-bar').style.width = pct(released,contract)+'%';
+  document.getElementById('kpi-desp').textContent = fmt(despatched)+' T';
+  document.getElementById('kpi-desp-pct').textContent = pct(despatched,contract)+'% of contract';
+  document.getElementById('kpi-desp-bar').style.width = pct(despatched,contract)+'%';
+  document.getElementById('kpi-erected').textContent = fmt(erected)+' T';
+  document.getElementById('kpi-er-pct').textContent = pct(erected,contract)+'% of contract';
+  document.getElementById('kpi-er-bar').style.width = pct(erected,contract)+'%';
+  document.getElementById('kpi-dwgs').textContent = allDrawings.length;
+  document.getElementById('kpi-shops').textContent = allShops.length+' shop(s)';
+
+  // Pipeline
+  document.getElementById('fab-pipeline').innerHTML = FAB_STAGES.map(st=>`
+    <div style="background:var(--bg3);border-radius:8px;padding:10px 8px;border-left:3px solid ${STAGE_COLORS[st]}">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:4px">${st}</div>
+      <div style="font-size:16px;font-weight:700">${fmt(stageTotals[st])}<span style="font-size:10px;color:var(--text3)">T</span></div>
+    </div>`).join('');
+
+  // Structure overview
+  const structs = {};
+  allDrawings.forEach(e=>{ if(!structs[e.structure])structs[e.structure]={released:0,erected:0}; structs[e.structure].released+=(e.tonnage||0); });
+  allEr.forEach(e=>{ const k=e.structure||e.dwg; if(!structs[k])structs[k]={released:0,erected:0}; structs[k].erected+=(e.tonnage||0); });
+  const so = document.getElementById('struct-overview');
+  if(!Object.keys(structs).length){ so.innerHTML='<p style="color:var(--text3);font-size:12px">No data yet.</p>'; return; }
+  so.innerHTML = Object.entries(structs).map(([k,v])=>{
+    const p2 = v.released ? Math.min(100,(v.erected/v.released)*100) : 0;
+    const bc = p2>=100?'var(--green)':p2>=50?'var(--amber)':'var(--blue)';
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:500">${k}</span>
+        <span style="font-size:12px;color:var(--text3)">${fmt(v.erected)} / ${fmt(v.released)} T</span>
+      </div>
+      <div class="ptrack"><div class="pfill" style="width:${p2}%;background:${bc}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderActivity(items){
+  const el = document.getElementById('activity-list');
+  el.innerHTML = items.length ? items.map(a=>`<div class="log-row"><div style="font-size:13px">${a.text}</div><div style="font-size:11px;color:var(--text3)">${a.time}</div></div>`).join('') : '<p style="color:var(--text3);font-size:12px;padding:12px 0">No activity yet.</p>';
+}
+
+// ENGINEERING
+function populateShopSelects(){
+  ['e-shop','f-shop','f-filter'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    const cur=el.value;
+    const opts = id==='f-filter' ? '<option value="">All shops</option>' : '<option value="">Select shop</option>';
+    el.innerHTML = opts + allShops.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+    el.value=cur;
+  });
+}
+
+async function saveEng(){
+  const dwg=document.getElementById('e-dwg').value.trim();
+  const struct=document.getElementById('e-struct').value.trim();
+  const shop=document.getElementById('e-shop').value;
+  const date=document.getElementById('e-date').value;
+  const ton=parseFloat(document.getElementById('e-ton').value);
+  const rev=document.getElementById('e-rev').value.trim();
+  const rem=document.getElementById('e-rem').value.trim();
+  if(!dwg||!struct||!shop||!date||isNaN(ton)){ showToast('Fill all required fields.',true); return; }
+  await db.collection('engineering').add({drawing:dwg,structure:struct,shop,date,tonnage:ton,rev,remarks:rem,createdBy:currentProfile.name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('activity').add({text:`Eng: ${dwg} (${struct}) — ${fmt(ton)}T → ${shop}`,time:new Date().toLocaleString(),ts:firebase.firestore.FieldValue.serverTimestamp()});
+  ['e-dwg','e-struct','e-rem','e-ton'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('e-rev').value='Rev 0';
+  showToast('Drawing release saved!');
+}
+
+function renderEngLog(){
+  const el=document.getElementById('eng-log');
+  if(!allDrawings.length){ el.innerHTML='<p style="color:var(--text3);font-size:13px">No releases yet.</p>'; return; }
+  el.innerHTML=[...allDrawings].reverse().map(e=>`
+    <div class="card" style="padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:14px;font-weight:700">${e.structure}</span>
+        <span style="font-size:16px;font-weight:700;color:var(--accent)">${fmt(e.tonnage)} T</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${e.drawing} · ${e.rev||'—'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge badge-blue">${e.shop}</span>
+        <span class="badge badge-orange">${e.date}</span>
+        ${e.remarks?`<span style="font-size:11px;color:var(--text3)">${e.remarks}</span>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// FABRICATION
+function populateFabSelects(){
+  populateShopSelects();
+  const el=document.getElementById('f-dwg'); if(!el) return;
+  const cur=el.value;
+  el.innerHTML='<option value="">Select drawing</option>'+allDrawings.map(d=>`<option value="${d.drawing}">${d.drawing} — ${d.structure}</option>`).join('');
+  el.value=cur;
+}
+
+async function saveFab(){
+  const date=document.getElementById('f-date')?.value;
+  const shop=document.getElementById('f-shop')?.value;
+  const dwg=document.getElementById('f-dwg')?.value;
+  const rem=document.getElementById('f-rem')?.value;
+  if(!date||!shop||!dwg){ showToast('Select date, shop and drawing.',true); return; }
+  const stages={};
+  FAB_STAGES.forEach((st,i)=>{ stages[st]=parseFloat(document.getElementById('fs-'+i)?.value)||0; });
+  const struct=allDrawings.find(d=>d.drawing===dwg)?.structure||dwg;
+  await db.collection('fabrication').add({date,shop,dwg,structure:struct,stages,remarks:rem,createdBy:currentProfile.name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('activity').add({text:`Shop ${shop}: ${struct} progress updated`,time:new Date().toLocaleString(),ts:firebase.firestore.FieldValue.serverTimestamp()});
+  FAB_STAGES.forEach((_,i)=>{ const el=document.getElementById('fs-'+i); if(el) el.value=''; });
+  document.getElementById('f-rem').value='';
+  showToast('Progress saved!');
+}
+
+function renderFabLog(){
+  const filter=document.getElementById('f-filter')?.value||'';
+  const rows=filter?allFab.filter(r=>r.shop===filter):allFab;
+  const el=document.getElementById('fab-log');
+  if(!rows.length){ el.innerHTML='<p style="color:var(--text3);font-size:13px">No entries yet.</p>'; return; }
+  el.innerHTML=rows.map(r=>`
+    <div class="card" style="padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <div><div style="font-size:14px;font-weight:700">${r.structure||r.dwg}</div><div style="font-size:11px;color:var(--text3)">${r.date} · ${r.shop}</div></div>
+        ${r.remarks?`<span style="font-size:11px;color:var(--text3);max-width:100px;text-align:right">${r.remarks}</span>`:''}
+      </div>
+      <div class="fr3">${FAB_STAGES.filter(st=>r.stages&&r.stages[st]>0).map(st=>`
+        <div style="background:var(--bg3);border-radius:6px;padding:5px 8px;border-left:2px solid ${STAGE_COLORS[st]}">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase">${st}</div>
+          <div style="font-size:13px;font-weight:600">${fmt(r.stages[st])}T</div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// ERECTION
+function populateErSelects(){
+  const el=document.getElementById('r-dwg'); if(!el) return;
+  const cur=el.value;
+  el.innerHTML='<option value="">Select drawing</option>'+allDrawings.map(d=>`<option value="${d.drawing}">${d.drawing} — ${d.structure}</option>`).join('');
+  el.value=cur;
+}
+
+function renderErToday(){
+  const t=today();
+  const total=allEr.filter(r=>r.date===t).reduce((a,r)=>a+(r.tonnage||0),0);
+  document.getElementById('er-today').textContent=fmt(total)+' T';
+  document.getElementById('er-today-date').textContent=new Date().toLocaleDateString();
+}
+
+async function saveEr(){
+  const date=document.getElementById('r-date')?.value;
+  const area=document.getElementById('r-area')?.value.trim();
+  const dwg=document.getElementById('r-dwg')?.value;
+  const ton=parseFloat(document.getElementById('r-ton')?.value)||0;
+  const cum=parseFloat(document.getElementById('r-cum')?.value)||0;
+  const crew=parseInt(document.getElementById('r-crew')?.value)||0;
+  const rem=document.getElementById('r-rem')?.value;
+  if(!date||!area||!dwg){ showToast('Fill date, area and drawing.',true); return; }
+  const struct=allDrawings.find(d=>d.drawing===dwg)?.structure||dwg;
+  await db.collection('erection').add({date,area,dwg,structure:struct,tonnage:ton,cumulative:cum,crew,remarks:rem,createdBy:currentProfile.name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('activity').add({text:`Erection: ${area} | ${struct} — ${fmt(ton)}T erected`,time:new Date().toLocaleString(),ts:firebase.firestore.FieldValue.serverTimestamp()});
+  ['r-area','r-rem'].forEach(id=>document.getElementById(id).value='');
+  ['r-ton','r-cum','r-crew'].forEach(id=>document.getElementById(id).value='');
+  showToast('Erection entry saved!');
+}
+
+function renderErLog(){
+  const el=document.getElementById('er-log');
+  if(!allEr.length){ el.innerHTML='<p style="color:var(--text3);font-size:13px">No entries yet.</p>'; return; }
+  el.innerHTML=allEr.map(r=>`
+    <div class="card" style="padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <div><div style="font-size:14px;font-weight:700">${r.structure||r.dwg}</div><div style="font-size:11px;color:var(--text3)">${r.area} · ${r.date}</div></div>
+        <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--amber)">${fmt(r.tonnage)} T</div><div style="font-size:10px;color:var(--text3)">Cumul: ${fmt(r.cumulative)} T</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${r.crew?`<span class="badge badge-teal">${r.crew} crew</span>`:''}
+        ${r.remarks?`<span style="font-size:11px;color:var(--text3)">${r.remarks}</span>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// SETTINGS
+async function saveProject(){
+  await db.collection('project').doc('info').set({name:document.getElementById('s-name').value.trim(),totalTonnage:parseFloat(document.getElementById('s-ton').value)||0});
+  showToast('Project info saved!');
+}
+
+async function addShop(){
+  const name=document.getElementById('s-shop').value.trim();
+  if(!name) return;
+  await db.collection('shops').add({name});
+  document.getElementById('s-shop').value='';
+  showToast('Shop added!');
+}
+
+function renderShopList(){
+  const el=document.getElementById('shop-list');
+  el.innerHTML=allShops.length?allShops.map(s=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:14px">${s.name}</span>
+      <button class="btn-sm" onclick="removeShop('${s.id}')">Remove</button>
+    </div>`).join(''):'<p style="color:var(--text3);font-size:13px">No shops yet.</p>';
+}
+
+async function removeShop(id){
+  await db.collection('shops').doc(id).delete();
+  showToast('Shop removed.');
+}
+
+async function createUser(){
+  const name=document.getElementById('u-name').value.trim();
+  const email=document.getElementById('u-email').value.trim();
+  const pass=document.getElementById('u-pass').value;
+  const role=document.getElementById('u-role').value;
+  if(!name||!email||!pass){ showToast('Fill name, email and password.',true); return; }
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    await db.collection('users').doc(cred.user.uid).set({name,email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    ['u-name','u-email','u-pass'].forEach(id=>document.getElementById(id).value='');
+    showToast(`User ${name} created!`);
+  } catch(e){ showToast(e.message||'Error creating user.',true); }
+}
+
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'){ if(document.getElementById('login-screen').style.display!=='none') doLogin(); } });
+</script>
+</body>
+</html>
